@@ -1,0 +1,55 @@
+commandArray = {} time = os.date("*t")
+    
+if ((time.min+2)%1)==0 then
+    
+    -- print ("pinging")
+    ping_success=os.execute('ping -c1 192.168.1.254')
+    
+    if ping_success then
+    
+        -- its not down.
+        if(otherdevices['InternetRouterDown']=='On') then
+            -- was down, but no longer
+            commandArray['InternetRouterDown']='Off'
+        else
+            -- was not down, so do nothing.
+            a = 0
+        end
+    
+    else
+        -- its down. For some reason this is get triggered multiple times a second
+        -- so only set if not set already
+        if(otherdevices['InternetRouterDown']=='Off') then
+            commandArray['InternetRouterDown']='On'
+        else
+            -- its down and we already have this set so do nothing
+            a = 0
+        end
+    end end return commandArray commandArray = {} time = os.date("*t")
+    
+if ((time.min+2)%1)==0 then
+    
+    -- print ("pinging")
+    ping_success=os.execute('ping -c1 192.168.1.254')
+    
+    if ping_success then
+    
+        -- its not down.
+        if(otherdevices['InternetRouterDown']=='On') then
+            -- was down, but no longer
+            commandArray['InternetRouterDown']='Off'
+        else
+            -- was not down, so do nothing.
+            a = 0
+        end
+    
+    else
+        -- its down. For some reason this is get triggered multiple times a second
+        -- so only set if not set already
+        if(otherdevices['InternetRouterDown']=='Off') then
+            commandArray['InternetRouterDown']='On'
+        else
+            -- its down and we already have this set so do nothing
+            a = 0
+        end
+    end end return commandArray

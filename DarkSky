@@ -1,0 +1,263 @@
+commandArray = {}
+
+function DirectionToText(compass)
+   
+   compasstext = 'S' -- default
+   
+   if(compass == nil) then compass = 180 end
+   
+   -- 45    = NE
+   -- 90    = E
+   -- 135   = SE
+   -- 180   = S
+   -- 225   = SW
+   -- 270   = W
+   -- 315   = NW
+   -- 360   = N
+   
+   -- S is not 180 to 135 
+   -- S between 225 - (45/2) and 135 + (45/2)
+   offset = 45 / 2
+   if     (compass < 45 - offset ) then compasstext = 'N'
+   elseif (compass < 45 + offset ) then compasstext = 'NE'
+   elseif (compass < 90 + offset ) then compasstext = 'E'
+   elseif (compass < 135 + offset ) then compasstext = 'SE'
+   elseif (compass < 180 + offset ) then compasstext = 'S'
+   elseif (compass < 225 + offset ) then compasstext = 'SW'
+   elseif (compass < 270 + offset ) then compasstext = 'W'
+   elseif (compass < 315 + offset ) then compasstext = 'NW'
+   elseif (compass < 360 ) then compasstext = 'N'
+   end
+
+   
+   return compasstext
+    
+end
+
+function UpdateDev(device,nvalue,svalues)
+    commandArray[#commandArray+1] = {['UpdateDevice'] = otherdevices_idx[device]..'|'..tostring(nvalue)..'|'..tostring(svalues)}
+end
+-- Functie afronding
+function round(num, dec)
+    if num == 0 then
+        return 0
+    else
+        local mult = 10^(dec or 0)
+        return math.floor(num * mult + 0.5) / mult
+    end
+end
+
+-- every x hours, only a 1000 calls a month are free.
+-- so for one minute every 4 hours run.
+time = os.date("*t")
+
+if  ((time.min+2)%59)==0  then
+if  ((time.hour+2)%2)==0  then      -- 12/Apr/2019 changed from 4 to 2 hours. 
+ 
+ 
+    local coord_v = "...868984,...687924"
+    local language_v = "en"
+    local api_key_v = "244648...eb19....."
+
+
+    json = (loadfile "/home/pi/domoticz/scripts/lua/JSON.lua")()  -- For Linux
+    local config=assert(io.popen('curl "https://api.darksky.net/forecast/'..api_key_v..'/'..coord_v..'?lang='..language_v..'&units=si&exclude=minutely,flags"'))
+    local Stringjson = config:read('*all')
+    config:close()
+    local jsonData = json:decode(Stringjson)
+    
+    -- print (Stringjson)
+
+    -- Convert the json to a LUA table
+    if jsonData ~= nil then  -- this sometimes happens around midnight
+
+        -- SI units are as follows:
+        -- summary: Any summaries containing temperature or snow accumulation units will have their values in degrees Celsius or in centimeters (respectively).
+        -- nearestStormDistance: Kilometers.
+        -- precipIntensity: Millimeters per hour.
+        -- precipIntensityMax: Millimeters per hour.
+        -- vprecipAccumulation: Centimeters.
+        -- temperature: Degrees Celsius.
+        -- temperatureMin: Degrees Celsius.
+        -- temperatureMax: Degrees Celsius.
+        -- apparentTemperature: Degrees Celsius.
+        -- dewPoint: Degrees Celsius.
+        -- windSpeed: Meters per second.
+        -- windGust: Meters per second.
+        -- pressure: Hectopascals.
+        -- visibility: Kilometers.
+    
+        -- *********
+        -- *********
+        -- SECTION 1 - currently
+        -- *********
+        -- *********
+    
+    
+        -- All JSON values and examples of their values as well as a * to indicate of they are used or not. 
+        val_apparentTemperature     = jsonData.currently.apparentTemperature -- 7.62    *
+        val_cloudCover              = jsonData.currently.cloudCover -- 0.86
+        val_dewPoint                = jsonData.currently.dewPoint -- 2.56
+        val_humidity                = jsonData.currently.humidity -- 0.7
+        val_val_icon                = jsonData.currently.icon -- "partly-cloudy-night"
+        val_nearestStormBearing     = jsonData.currently.nearestStormBearing -- 57      *
+        val_nearestStormDistance    = jsonData.currently.nearestStormDistance -- 153    *
+        val_ozone                   = jsonData.currently.ozone -- 305.62
+        val_precipIntensity         = jsonData.currently.precipIntensity -- 0           *
+        val_precipProbability       = jsonData.currently.precipProbability -- 0         *
+        val_pressure                = jsonData.currently.pressure -- 1025.99            *
+        val_summary                 = jsonData.currently.summary -- "Mostly Cloudy"     *
+        val_temperature             = jsonData.currently.temperature -- 7.62            *
+        val_time                    = jsonData.currently.time -- 1557096853
+        val_uvIndex                 = jsonData.currently.uvIndex -- 0                   *
+        val_visibility              = jsonData.currently.visibility -- 16.09
+        val_windBearing             = jsonData.currently.windBearing -- 215             *
+        val_windGust                = jsonData.currently.windGust -- 1.33               *
+        val_windSpeed               = jsonData.currently.windSpeed -- 0.93              *
+    end
+    
+    -- *****************
+    -- 1.1 Wind
+    -- *****************
+    --/json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=WB;WD;WS;WG;22;24
+    --IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    --WB = Wind bearing (0-359)
+    --WD = Wind direction (S, SW, NNW, etc.)
+    --WS = 10 * Wind speed [m/s] 
+    --WG = 10 * Gust [m/s]
+    --22 = Temperature
+    --24 = Temperature Windchill
+    --                           '15                 ;S   ;1                           ;   0                           ;0                              ;0'
+    v_updatesensorwind = tostring(val_windBearing)..';'..tostring(DirectionToText(val_windBearing))..';'..tostring(10*val_windSpeed)..';'..tostring(10*val_windGust)..';'..tostring(val_temperature)..';'..tostring(val_apparentTemperature)
+    -- print('wind', v_updatesensorwind)
+    UpdateDev("WindDD",'0',v_updatesensorwind)
+    
+    -- *****************
+    -- 1.2 Storm
+    -- *****************
+    v_updatesensorstorm = tostring(val_nearestStormBearing)..';'..tostring(DirectionToText(val_nearestStormBearing))..';'..tostring(10*val_nearestStormDistance)..';0;0;0'
+    -- print('storm', v_updatesensorstorm)
+    UpdateDev("StormDD",'0',v_updatesensorstorm)
+
+    
+    -- *****************
+    -- 1.3 UV
+    -- *****************
+    -- /json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=UV;TEMP
+    -- IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    -- UV = Float (example: 2.1) with current UV reading.
+    -- TEMP = temperature (only for UV subtype TFA (3), else specify 0)
+    -- Don't loose the ";0" at the end - without it database may corrupt.
+    -- If no temp is in use, specify 0 as temperature
+    UpdateDev("UVJMM",'0',tostring(val_uvIndex)..';0')
+
+    -- *****************
+    -- 1.4 Rain
+    -- *****************
+    -- precipProbability optional
+    -- The probability of precipitation occurring, between 0 and 1, inclusive.
+    -- precipIntensity optional
+    -- The intensity (in inches of liquid water per hour) of precipitation occurring at the given time. This value is conditional on probability (that is, assuming any precipitation occurs at all).
+    -- Rain
+    -- //json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=RAINRATE;RAINCOUNTER
+    -- IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    -- RAINRATE = amount of rain in last hour in [mm x 100]
+    -- RAINCOUNTER = continues counter of fallen Rain in [mm]
+    -- precipIntensity: Millimeters per hour.
+    -- precipIntensityMax: Millimeters per hour.
+    -- precipAccumulation: Centimeters.
+    -- sampling frequency is low, so how much has fallen in one go cant track so 0 for second parameter.
+
+    dev_rainratex = tonumber(val_precipIntensity) * 100 -- 09/Apr MK added x 100.
+    UpdateDev("RainDD",'0', tostring(dev_rainratex) .. ';0') 
+    -- IDX = id of your device (this number can be found in the devices tab in the column "IDX")
+    -- PERCENTAGE = Percentage
+    dev_riskofrainx = val_precipProbability * 100
+    UpdateDev("RiskOfRainDD",'0', tostring(dev_riskofrainx))
+
+    -- *****************
+    -- 1.5 Pressure
+    -- ***************** 
+    --     /json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=BAR
+    --    IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    --    BAR = Pressure in Bar
+    --    Create sensor under Hardware > Dummy > Create virtual sensor
+    dev_pressurex = val_pressure 
+    UpdateDev("PressureDD",'0', tostring(dev_pressurex))
+    
+    -- *********
+    -- *********
+    -- SECTION 2 - forcast
+    -- *********
+    -- *********    
+    
+    -- *****************
+    -- 2.1 summary
+    -- *****************
+    
+    -- /json.htm?type=command&param=udevice&idx=IDX&nvalue=0&svalue=TEXT
+    -- IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    -- TEXT = Text you want to display
+    
+    val_forcast_now     = val_summary -- "Mostly Cloudy"
+    val_forcast_hourly  = jsonData.hourly.summary
+    val_forcast_daily   = jsonData.daily.summary
+    UpdateDev("Forecast",'0', 'NOW ' .. tostring(val_forcast_now) .. ' NEXT HOUR ' .. tostring(val_forcast_hourly) .. ' FORCAST ' .. tostring(val_forcast_daily))
+
+    -- *****************
+    -- 2.2 advisory
+    -- *****************
+    -- 
+    -- mix info from...
+    --      .alters. ~= nil 
+    --      drop in pressure (hourly.0.pressure. hourly.1.pressure for now not doing this.
+    -- Alert sensor
+    -- /json.htm?type=command&param=udevice&idx=IDX&nvalue=LEVEL&svalue=TEXT
+    -- IDX = id of your device (This number can be found in the devices tab in the column "IDX")
+    -- Level = (0=gray, 1=green, 2=yellow, 3=orange, 4=red)
+    -- TEXT = Text you want to display
+    -- '0;bla bla'
+    -- severity required for sever weather
+    -- "advisory"   watch
+    -- "watch"      prepare
+    -- "warning"    take immediate action
+    val_severityxn = 0
+    val_alertx = 'no warning'
+    if (jsonData.alerts ~= nil) then
+        
+        val_severityxt = jsonData.alerts.severity
+        
+        if (     val_severityxt == 'advisory' ) then
+            val_severityxn = 2
+        end
+        
+        if (val_severityxt == 'watch') then
+            val_severityxn = 3
+        end
+        
+        if (val_severityxt == 'warning') then
+            val_severityxn = 4
+        end    
+        
+        val_alertx = jsonData.alerts.severity.title .. ' ' .. jsonData.alerts.severity.description
+    
+    end
+    UpdateDev("AlertDD",tostring(val_severityxn),tostring(val_alertx))
+ 
+    -- *****************
+    -- 2.2 Set the future temp for the heating system logic. Will also help determine how good Darksky is over time.
+    -- *****************
+    -- 1557331200 = Wed, 08 May 2019 16:00:00 GMT hourly first one 
+    -- 1557334441 = Wed, 08 May 2019 16:54:01 GMT (now)
+    -- 1557334800 = Wed, 08 May 2019 17:00:00 GMT hourly the 2nd one
+    -- default to some type of temperature
+    val_forecast_3h     = jsonData.hourly.data[4].temperature       -- 3 hours from now, if 1 = this hour. 1 + 3 = 4.
+    val_forecast_24h    = jsonData.daily.data[1].temperatureHigh    -- tomorrow max, could use hourly[20] but thats not an average.
+    UpdateDev("FutureT24H"  ,'0', tostring(val_forecast_24h) )
+    UpdateDev("FutureT3H"   ,'0', tostring(val_forecast_3h) )
+
+    
+end -- hour
+end -- minute
+
+return commandArray

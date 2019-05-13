@@ -1,0 +1,16 @@
+commandArray = {} function UpdateDev(device,nvalue,svalues)
+    commandArray[#commandArray+1] = {['UpdateDevice'] = 
+otherdevices_idx[device]..'|'..tostring(nvalue)..'|'..tostring(svalues)} end time = os.date("*t") if 
+((time.min+2)%30)==0 then
+    var_Cooling = 'Off'
+    
+    -- to do. might be worth using a termostat in the future.
+    if ( tonumber( otherdevices['LivingRoomT']) > 20.5 ) then
+        var_Cooling = 'On'
+        UpdateDev("HeatingText",'0', "Cooling is called for as the living room is getting warm. switch off 
+heating." .. tostring(otherdevices['LivingRoomT']) )
+    end
+    
+    if (otherdevices['TriggerCooling'] ~= var_Cooling ) then
+        commandArray['TriggerCooling'] = var_Cooling
+    end end -- every x min return commandArray

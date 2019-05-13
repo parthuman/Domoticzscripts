@@ -1,0 +1,41 @@
+-- otherdevices['yourotherdevicename'] = "On" -- timeofday['Nighttime'] = true or false -- 
+timeofday['SunriseInMinutes'] = number -- timeofday['Daytime'] = true or false -- timeofday['SunsetInMinutes'] 
+= number -- globalvariables['Security'] = 'Disarmed', 'Armed Home' or 'Armed Away' commandArray = {} function 
+UpdateDev(device,nvalue,svalues)
+    commandArray[#commandArray+1] = {['UpdateDevice'] = 
+otherdevices_idx[device]..'|'..tostring(nvalue)..'|'..tostring(svalues)} end time = os.date("*t") if 
+((time.min+2)%1)==0 then
+    var_Kdooropen = otherdevices['KitchenDoorDD']
+    var_Daytime = timeofday['Daytime']
+    var_areweathome = 'Off'
+    
+    -- print("1.." .. tostring(var_Kdooropen) .. "-"..tostring(var_Daytime) .. "-" .. 
+tostring(var_areweathome))
+    
+    if (var_Daytime ) then
+        -- its day time
+        -- print("2.." .. tostring(var_Kdooropen) .. "-"..tostring(var_Daytime) .. "-" .. 
+tostring(var_areweathome))
+        if( var_Kdooropen == 'Open' ) then
+            -- we are at Home as the door is open which we close at night...
+            -- or not yet Up
+            -- or closed the door as it was cold.
+            var_areweathome = 'On'
+            -- print("3.." .. tostring(var_Kdooropen) .. "-"..tostring(var_Daytime) .. "-" .. 
+tostring(var_areweathome))
+            -- print ('door open in day time')
+        end
+    else
+        -- its night time
+        var_areweathome = 'On'
+        -- print("4.." .. tostring(var_Kdooropen) .. "-"..tostring(var_Daytime) .. "-" .. 
+tostring(var_areweathome))
+        -- print ('its night so we are at Home')
+    end
+    
+    -- print("5.." .. tostring(var_Kdooropen) .. "-"..tostring(var_Daytime) .. "-" .. 
+tostring(var_areweathome))
+    -- change it if needed.
+    if (otherdevices['AreWeAtHome'] ~= var_areweathome ) then
+        commandArray['AreWeAtHome'] = var_areweathome
+    end end return commandArray

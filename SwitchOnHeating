@@ -1,0 +1,128 @@
+commandArray = {} function UpdateDev(device,nvalue,svalues)
+    commandArray[#commandArray+1] = {['UpdateDevice'] = 
+otherdevices_idx[device]..'|'..tostring(nvalue)..'|'..tostring(svalues)} end time = os.date("*t") if 
+((time.min+2)%10)==0 then
+    -- *******
+    -- variables to make the logic cleaner to read as its going to get messy
+    -- *******
+    
+    var_debug = ":"
+    
+    var_Daytime = timeofday['Daytime']
+    var_SwitchItOn = 'Off'
+    var_now_inside = tonumber( otherdevices['LivingRoomT'] ) -- real time measured. not using the dark sky as 
+that could be old(er)
+    var_now_outside = tonumber( otherdevices['OutsideT'] )
+        
+    var_future_1 = tonumber( otherdevices['FutureT3H'] )
+    var_future_2 = tonumber( otherdevices['FutureT24H'] )
+    
+    var_now_home = otherdevices['AreWeAtHome'] -- on or off.
+    
+    if( var_now_outside == nil or var_now_inside == nil or var_future_1 == nil or var_future_2 == nil ) then
+        print ("nill values in variables")
+        return
+    end
+    
+    -- 15 - 20 = -5
+    -- -5/15 = -33%
+    -- or
+    -- 15 - 10 = 5
+    -- 5/15 = 33%
+    -- 20 - 5 = 15
+    -- 15/20 = 75%
+    -- print ( tostring(var_now_outside) .. ":" .. tostring(var_future_1) .. ":" .. tostring(var_future_2))
+    var_future_trnd = (var_now_outside - var_future_2) / var_now_outside
+    
+    -- x = take the diff between the outside now and the inside
+    -- for example 20 - 15 = 5
+    -- for example 20 - 25 - -5
+    -- then add this to the future outside tem to give a future inside temp (kinda)
+    -- y = inside + x
+    -- for example 15 - 5 = 10 (getting colder)
+    -- for example 15 - -5 = 20 (getting warmer)
+    var_coolingdown = true
+    var_futureinside = var_now_inside - (var_now_outside - var_future_1 )
+    if ( var_futureinside > var_now_inside + 4 ) then
+        var_coolingdown = false
+    end
+    -- freezing
+    var_freezing = false
+    if ( var_now_outside < 2 or var_future_1 < 2 or var_future_2 < 2 ) then
+        var_freezing = true
+    end
+    -- going to bed
+    var_bedtime = false
+    if ( time.hour >= 23 ) then
+        var_bedtime = true
+    end
+    -- *******
+    -- The big logic
+    -- *******
+    if (var_freezing) then
+        var_SwitchItOn = 'On'
+        var_debug = "if its that cold all other logic goes out the window"
+    elseif (var_Daytime) then
+        if (var_now_home == 'On') then
+            if ( var_now_inside < 21 and var_future_1 < 12 ) then
+                    var_SwitchItOn = 'On'
+                    var_debug = "its ok inside but not that nice outside in the next while " .. 
+tostring(var_future_1) .. "C"
+            end
+            -- what about its less than 21 and the future is not that cold.
+            -- i.e your home and its just not that warm right now.
+            -- this clause is the opposite to the other logic, in that it looks to see if the weather is going 
+to improvie
+            if ( var_now_inside < 20 and var_coolingdown ) then
+                    var_SwitchItOn = 'On'
+                    var_debug = "its ok-ish inside and the possible future inside temp is going to increase 
+but not enough " .. tostring(var_futureinside) .. "C"
+            end
+        else
+            if ( var_now_inside < 15 and var_future_1 < 10 ) then
+                        var_SwitchItOn = 'On'
+                        var_debug = "15 inside low and its getting lower," .. tostring(var_future_1) .." even 
+when not at home do something"
+            end
+        end
+    else
+            if (var_bedtime == true ) then
+                if ( var_now_inside < 19 and var_future_1 < 10 ) then
+                    var_SwitchItOn = 'On'
+                    var_debug = "going to bed, but at those temp coming up soon do something " .. 
+tostring(var_future_1)
+                end
+            else
+                if ( var_now_inside < 18 and var_future_1 < 8 ) then
+                    var_SwitchItOn = 'On'
+                    var_debug = "its night, below 18 and the future looks like below 8. Not that warm at all 
+and getting colder " .. tostring(var_future_1)
+                end
+            end
+    end
+    -- *******
+    -- exceptions
+    -- *******
+    if ( var_SwitchItOn == 'Off' ) then
+        if ( var_future_1 < 5 and var_future_trnd > 0.75 ) then
+            var_SwitchItOn = 'On'
+            var_debug = "does not matter if anyone at home, day or night if its going to be close to freezing 
+soon and tomorrow look sht then be worth switching it on."
+        end
+    end
+    
+    if( var_debug ~= ":") then
+        UpdateDev("HeatingText",'0', tostring(var_debug))
+    end
+    
+    print ("TriggerHeating" .. otherdevices['TriggerHeating'])
+    print ("var_SwitchItOn" .. var_SwitchItOn )
+    
+    -- off off - do nothing
+    -- on on - do nothing
+    -- on off - set to on.
+    -- off on - off ??  (we set it to on. the ifttt trigger has not done anything or the script ran twice. no 
+we dont want the heat. so switch it off??
+    if (otherdevices['TriggerHeating'] ~= var_SwitchItOn ) then
+        commandArray['TriggerHeating'] = var_SwitchItOn
+    end end -- every x min return commandArray
